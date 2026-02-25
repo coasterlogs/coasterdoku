@@ -181,12 +181,15 @@
 
             max-height: 220px;
             overflow-y: auto;
-            overflow: hidden;
 
             background: #393939;
             color: white;
             border-radius: 8px;
             box-shadow: 0 6px 14px rgba(0,0,0,.25);
+
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            touch-action: pan-y;
         }
 
         .autocomplete-item {
@@ -417,3 +420,4 @@
 <script src="script.js"></script>
 </body>
 </html>
+
