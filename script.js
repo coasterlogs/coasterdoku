@@ -19,7 +19,7 @@ const ICONS_TO_PRELOAD = [
   "icons/copy.svg",
   "icons/new-game.svg",
   "icons/powered.svg",
-  "icons/elevator.png"
+  "icons/elevator.png",
   "icons/lift.png",
   "icons/launch.png",
   "icons/faster.svg",
@@ -864,4 +864,5 @@ async function main() {
 }
 
 main();
+
 
