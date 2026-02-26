@@ -39,8 +39,6 @@
             background: #303030;
             border-radius: 20px;
             box-shadow: 0 0 25px rgba(0,0,0,.3);
-
-            animation: fadeInUp 0.5s ease-out;
         }
 
         #grid {
@@ -48,8 +46,6 @@
             grid-template-columns: 130px repeat(3, 130px);
             grid-template-rows: 130px repeat(3, 130px);
             gap: 8px;
-
-            animation: fadeInUp 0.5s ease-out;
         }
 
 
@@ -400,6 +396,10 @@
             75%  { transform: translateX(-4px); }
             100% { transform: translateX(0); }
         }
+        
+        .fade-in {
+            animation: fadeInUp 0.5s ease-out;
+        }
     </style>
 </head>
 
@@ -420,6 +420,7 @@
 <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
