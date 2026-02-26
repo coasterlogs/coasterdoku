@@ -1616,7 +1616,7 @@
     "inversions": 0,
     "modality": "Powered Coaster",
     "restraint": "Lap Bar Restraint",
-    "eligible": "No",
+    "eligible": "Yes",
     "id": 2078
   },
   {
@@ -1690,24 +1690,6 @@
     "restraint": "Common Restraint",
     "eligible": "No",
     "id": 937
-  },
-  {
-    "name": "Max + Moritz (Moritz)",
-    "park": "Efteling",
-    "country": "Netherlands",
-    "opening_year": 2020,
-    "manufacturer": "Mack Rides",
-    "material": "Steel",
-    "design": "Sit Down Coaster",
-    "model": "Mack Powered Coaster",
-    "height": 6,
-    "speed": 36,
-    "length": 300,
-    "inversions": 0,
-    "modality": "Powered Coaster",
-    "restraint": "Lap Bar Restraint",
-    "eligible": "No",
-    "id": 2073
   },
   {
     "name": "Spatiale Expérience",
@@ -2335,7 +2317,7 @@
     "length": 1170,
     "inversions": 14,
     "modality": "Chain Lift",
-    "restraint": "Lap Bar Restraint",
+    "restraint": "Shoulder Restraint",
     "eligible": "Yes",
     "id": 1616
   },
@@ -30757,7 +30739,7 @@
     "length": 1278,
     "inversions": 4,
     "modality": "Chain Lift",
-    "restraint": "Shoulder Restraint",
+    "restraint": "Vest Restraint",
     "eligible": "Yes",
     "id": 2013
   },
@@ -49537,3 +49519,4 @@
   }
 
 ]
+
