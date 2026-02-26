@@ -4873,7 +4873,7 @@
     "length": 650,
     "inversions": 0,
     "modality": "Hydraulic Launch",
-    "restraint": "Lap Bar Restraint",
+    "restraint": "Shoulder Restraint",
     "eligible": "Yes",
     "id": 1273
   },
@@ -49535,4 +49535,5 @@
     "eligible": "No",
     "id": 1753
   }
+
 ]
