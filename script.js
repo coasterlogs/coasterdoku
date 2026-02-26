@@ -19,6 +19,7 @@ const ICONS_TO_PRELOAD = [
   "icons/copy.svg",
   "icons/new-game.svg",
   "icons/powered.svg",
+  "icons/elevator.png"
   "icons/lift.png",
   "icons/launch.png",
   "icons/faster.svg",
@@ -109,6 +110,7 @@ function getIconForAttributeValue(attrIndex, value) {
 
     case attr.MODALITY:
       if (value.includes("Powered")) return "icons/powered.svg";
+      if (value.includes("Elevator")) return "icons/elevator.png";
       if (value.includes("Lift")) return "icons/lift.png";
       else return "icons/launch.png";
 
@@ -862,3 +864,4 @@ async function main() {
 }
 
 main();
+
