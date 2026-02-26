@@ -482,6 +482,10 @@ function renderGridWithHints(grid) {
       gridEl.appendChild(cell);
     }
   }
+  const wrapper = document.getElementById("grid-wrapper");
+  wrapper.classList.remove("fade-in");
+  void wrapper.offsetWidth;
+  wrapper.classList.add("fade-in");
 }
 
 function onInputTyping(e) {
@@ -802,3 +806,4 @@ async function main() {
 }
 
 main();
+
