@@ -1,11 +1,52 @@
 const countryToContinent = {
-  Austria:"Europe", Belgium:"Europe", UK:"Europe", Spain:"Europe", France:"Europe", Germany:"Europe", Denmark:"Europe", Finland:"Europe", Italy:"Europe", Netherlands:"Europe", Norway:"Europe", Poland:"Europe", Sweden:"Europe", Russia:"Europe", Ireland:"Europe",
-  UAE:"Asia", China:"Asia", Japan:"Asia", Singapore:"Asia", Southkorea:"Asia", Taiwan:"Asia", Turkey:"Asia", Vietnam:"Asia",
-  USA:"North America", Canada:"North America", Mexico:"North America",
-  Guatemala:"South America",
-  Southafrica:"Africa",
-  Australia:"Oceania"
+  Austria:"Europe", Belgium: "Europe", Croatia: "Europe", Cyprus: "Europe", Estonia: "Europe", Czech: "Europe",
+  UK: "Europe", Spain: "Europe", France: "Europe", Germany: "Europe", Denmark: "Europe", Finland: "Europe", Italy: "Europe",
+  Netherlands: "Europe", Norway: "Europe", Poland: "Europe", Sweden: "Europe", Russia: "Europe", Ireland: "Europe",
+  Hungary: "Europe", Luxembourg: "Europe", Portugal: "Europe", Romania: "Europe", Serbia: "Europe", Switzerland: "Europe",
+
+  UAE: "Asia", China: "Asia", Japan: "Asia", Singapore: "Asia", Southkorea: "Asia", Taiwan: "Asia", Turkey: "Asia",
+  Vietnam: "Asia", Israel: "Asia", Malaysia: "Asia", Qatar: "Asia", "Saudi Arabia": "Asia", Thailand: "Asia",
+
+  USA: "North America", Canada: "North America", Mexico: "North America",
+
+  Guatemala: "South America", Brazil: "South America", Colombia: "South America",
+
+  Southafrica: "Africa", Tunisia: "Africa",
+
+  Australia:"Oceania", Newzealand: "Oceania"
 };
+const ICONS_TO_PRELOAD = [
+  "icons/copy.svg",
+  "icons/new-game.svg",
+  "icons/powered.svg",
+  "icons/lift.png",
+  "icons/launch.png",
+  "icons/faster.svg",
+  "icons/slower.svg",
+  "icons/taller.svg",
+  "icons/shorter.svg",
+  "icons/length.svg",
+  "icons/has-inversions.png",
+  "icons/no-inversions.svg",
+  "icons/steel.svg",
+  "icons/wood.svg",
+  "icons/park.svg",
+  "icons/opening.svg",
+  "icons/country.svg",
+  "icons/continent.svg",
+  "icons/manufacturer.svg",
+  "icons/model.svg",
+  "icons/sit-down.png",
+  "icons/inverted.png",
+  "icons/stand-up.png",
+  "icons/flying.png",
+  "icons/water-coaster.svg",
+  "icons/spinning.svg",
+  "icons/wing.png",
+  "icons/lap-bar.png",
+  "icons/shoulder.png",
+  "icons/vest.png"
+];
 const attr = {
   FIRST_LETTER: 0,
   MATERIAL: 1,
@@ -29,7 +70,7 @@ let isRestoringState = false;
 let activeDropdown;
 let small_database = [];
 let big_database = [];
-const BASE_DATE = new Date(2026, 0, 1); // 1 enero 2026
+const BASE_DATE = new Date(2026, 1, 25);
 let currentPuzzleNumber = null;
 let currentMode = localStorage.getItem("coasterdoku_mode") || "daily";
 window.addEventListener("DOMContentLoaded", () => {
@@ -46,6 +87,19 @@ document.getElementById("endlessBtn").onclick = () => {
   localStorage.setItem("coasterdoku_mode", "endless");
   location.reload();
 };
+
+function preloadImages(list) {
+  return Promise.all(
+      list.map(src => {
+        return new Promise(resolve => {
+          const img = new Image();
+          img.onload = resolve;
+          img.onerror = resolve;
+          img.src = src;
+        });
+      })
+  );
+}
 
 function getIconForAttributeValue(attrIndex, value) {
   switch (attrIndex) {
@@ -120,7 +174,7 @@ function getIconForAttributeValue(attrIndex, value) {
 function startGame(customSeed = null) {
   if (currentMode === "daily") {
     currentPuzzleNumber = getDailyPuzzleNumber();
-    rand = mulberry32(currentPuzzleNumber);
+    rand = mulberry32(currentPuzzleNumber + 7);
   } else {
     const seedToUse = customSeed ?? Date.now();
     rand = mulberry32(seedToUse);
@@ -480,6 +534,7 @@ function renderGridWithHints(grid) {
       });
       cell.appendChild(input);
       gridEl.appendChild(cell);
+
     }
   }
   const wrapper = document.getElementById("grid-wrapper");
@@ -779,6 +834,7 @@ function hashStringToNumber(str) {
 }
 
 async function main() {
+  await preloadImages(ICONS_TO_PRELOAD);
   big_database = await loadDatabase("database.json");
   small_database = big_database.filter(coaster => coaster.eligible === "Yes");
   for (const coaster of big_database) {
@@ -806,4 +862,3 @@ async function main() {
 }
 
 main();
-
