@@ -149,9 +149,25 @@
         }
 
         .cell.target {
-            background: #FBCD32;
-            color: black;
+            content: "★";
+            position: relative;
+            background: linear-gradient(135deg, #FFD54F, #F9A825);
+            color: #1a1a1a;
+            font-weight: 600;
             animation: pop 0.2s ease;
+            box-shadow:
+                    0 0 12px rgba(255, 193, 7, 0.6),
+                    inset 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .cell.target::after {
+            content: "★";
+            position: absolute;
+            top: 8px;
+            left: 12px;
+            font-size: 17px;
+            color: #000000;
+            text-shadow: 0 0 6px rgba(255,255,255,0.8);
         }
 
         .cell-coaster {
@@ -426,6 +442,7 @@
 <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
