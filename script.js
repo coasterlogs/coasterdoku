@@ -723,7 +723,7 @@ function generateResultText() {
           }
           if (cell.classList.contains("target")) {
             greens++;
-            return "🟨";
+            return "⭐";
           }
           return "🟥";
         }).join("")
@@ -860,6 +860,3 @@ async function main() {
 }
 
 main();
-
-
-
