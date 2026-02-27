@@ -578,10 +578,6 @@ function getSuggestions(text, rowAttr, colAttr) {
         if (simplified[colAttr] === "") return false;
         return coaster.name.toLowerCase().normalize("NFD").replace(/[^a-z0-9 ]/g, char => specialCharMap[char] || "")
             .includes(text.toLowerCase().normalize("NFD").replace(/[^a-z0-9 ]/g, char => specialCharMap[char] || ""));
-      }).sort((a, b) => {
-        const heightA = Number(a.height) || 0;
-        const heightB = Number(b.height) || 0;
-        return heightB - heightA; // mayor primero
       }).slice(0, 20);
 }
 
@@ -864,5 +860,6 @@ async function main() {
 }
 
 main();
+
 
 
