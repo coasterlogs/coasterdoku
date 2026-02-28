@@ -176,7 +176,7 @@ function getIconForAttributeValue(attrIndex, value) {
 function startGame(customSeed = null) {
   if (currentMode === "daily") {
     currentPuzzleNumber = getDailyPuzzleNumber();
-    rand = mulberry32(currentPuzzleNumber + 7);
+    rand = mulberry32(currentPuzzleNumber + 8);
   } else {
     const seedToUse = customSeed ?? Date.now();
     rand = mulberry32(seedToUse);
@@ -860,3 +860,4 @@ async function main() {
 }
 
 main();
+
