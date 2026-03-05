@@ -10381,7 +10381,7 @@
     "length": 825,
     "inversions": 4,
     "modality": "Magnetic Launch",
-    "restraint": "Shoulder Restraint",
+    "restraint": "Lap Bar Restraint",
     "eligible": "Yes",
     "id": 770
   },
@@ -45791,4 +45791,5 @@
     "eligible": "Yes",
     "id": 2408
   }
+
 ]
