@@ -264,7 +264,7 @@
     "speed": 52,
     "length": 928,
     "inversions": 0,
-    "modality": "Chain Lift",
+    "modality": "",
     "restraint": "Lap Bar Restraint",
     "eligible": "Yes",
     "id": 1861
@@ -45793,3 +45793,4 @@
   }
 
 ]
+
