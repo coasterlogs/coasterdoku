@@ -88,6 +88,7 @@ document.getElementById("endlessBtn").onclick = () => {
   localStorage.setItem("coasterdoku_mode", "endless");
   location.reload();
 };
+let wildcardUsed = false;
 
 function preloadImages(list) {
   return Promise.all(
@@ -182,28 +183,20 @@ function startGame(customSeed = null) {
     rand = mulberry32(seedToUse);
   }
   usedCoasters.clear();
-  const chosen = small_database[Math.floor(rand() * small_database.length)];
-  const simplified = chosen._simplified;
-  for (let i = 0; i < 1000; i++) {
-    const [indices, values] = findUniqueAttributes(simplified);
-    if (!indices) break;
-    let difficultyLimit;
-    if (i < 100) {
-      difficultyLimit = 10;
-    } else {
-      difficultyLimit = 10 + Math.floor((i - 100) / 10) + 1;
-    }
-    const validGrid = generateValidGrid(indices, values, chosen, difficultyLimit);
-    if (validGrid) {
-      currentGrid = validGrid;
-      renderGridWithHints(validGrid);
-      if (currentMode === "daily") {
-        const saved = loadDailyState();
-        if (saved) {
-          restoreDailyState(saved);
-        }
-      }
-      break;
+  const chosen =
+      small_database[Math.floor(rand() * small_database.length)];
+  const bestGrid =
+      generateHardestGridForChosen(chosen);
+  if (!bestGrid) {
+    console.warn("No se pudo generar tablero difícil, usando fallback.");
+    return;
+  }
+  currentGrid = bestGrid;
+  renderGridWithHints(bestGrid);
+  if (currentMode === "daily") {
+    const saved = loadDailyState();
+    if (saved) {
+      restoreDailyState(saved);
     }
   }
 }
@@ -250,16 +243,22 @@ function saveDailyState() {
     const row = Number(coasterDiv.dataset.row);
     const col = Number(coasterDiv.dataset.col);
     const id = coasterDiv.dataset.id;
-    if (!id) return;
+    const isCorner = cell.id === "wildcard-corner";
     placements.push({
       row,
       col,
-      id
+      id,
+      isCorner
     });
   });
+  const corner = document.getElementById("wildcard-corner");
+  const wildcardInputVisible =
+      corner && corner.querySelector("input");
   localStorage.setItem("coasterdoku_daily_state", JSON.stringify({
     puzzleId: currentPuzzleNumber,
-    placements
+    placements,
+    wildcardUsed,
+    wildcardInputVisible
   }));
 }
 
@@ -278,6 +277,10 @@ function loadDailyState() {
 function restoreDailyState(savedState) {
   isRestoringState = true;
   savedState.placements.forEach(p => {
+    if (p.isCorner) {
+      restoreCornerCell(p);
+      return;
+    }
     const cellInput = document.querySelector(
         `input[data-row="${p.row}"][data-col="${p.col}"]`
     );
@@ -286,7 +289,30 @@ function restoreDailyState(savedState) {
     if (!coaster) return;
     evaluateSelection(cellInput, coaster);
   });
+  wildcardUsed = savedState.wildcardUsed || false;
+  if (savedState.wildcardInputVisible && !wildcardUsed) {
+    revealWildcardGuessCell();
+  }
   isRestoringState = false;
+}
+
+function restoreCornerCell(p) {
+  const corner = document.getElementById("wildcard-corner");
+  if (!corner) return;
+  const coaster = big_database.find(c => c.id === Number(p.id));
+  if (!coaster) return;
+  corner.classList.add("locked");
+  corner.innerHTML = `
+    <div class="cell-coaster" data-id="${coaster.id}">
+      ${coaster.name}
+    </div>
+    <div class="cell-park">${coaster.park ?? ""}</div>
+  `;
+  if (coaster.id === currentGrid.targetId) {
+    corner.classList.add("target");
+  } else {
+    corner.classList.add("wrong");
+  }
 }
 
 function simplifyCoaster(coaster) {
@@ -330,30 +356,6 @@ function shuffle(array) {
     const j = Math.floor(rand() * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
   }
-}
-
-function findUniqueAttributes(chosenSimplified) {
-  const attrIndices = [...Array(chosenSimplified.length).keys()];
-  const allCombos = combinations(attrIndices, 6).filter(isValidAttributeCombo);
-  shuffle(allCombos);
-  for (const indices of allCombos) {
-    const candidateSubset =
-      indices.map(i => chosenSimplified[i]);
-    if (candidateSubset.includes(""))
-    continue;
-    let count = 0;
-    for (const coaster of big_database) {
-      const simplified = coaster._simplified;
-      const otherSubset = indices.map(i => simplified[i]);
-      if (arraysEqual(otherSubset,candidateSubset)) {
-        count++;
-        if (count === 2) break;
-      }
-    }
-    if (count === 1)
-      return [indices, candidateSubset];
-  }
-  return [null, null];
 }
 
 function isValidAttributeCombo(indices) {
@@ -417,52 +419,124 @@ function arraysEqual(a, b) {
   return true;
 }
 
-function generateValidGrid(indices, chosenValues, chosen, difficultyLimit) {
-  const paired = indices.map((v,i)=>[v,chosenValues[i]]);
-  const rowCombinations = combinations(paired,3);
-  shuffle(rowCombinations);
-  for (const rowAttrs of rowCombinations) {
-    const colAttrs =
-      paired.filter(p => !rowAttrs.includes(p));
-    let valid = true;
-    const gridCandidates =
-      Array.from({length:3},()=>Array.from({length:3}, ()=>[[chosen.id, chosen.name]]));
-    for (let i=0;i<3;i++) {
-      const [rowIdx,rowVal] = rowAttrs[i];
-      for (let j=0;j<3;j++) {
-        const [colIdx,colVal] = colAttrs[j];
-        let foundAny=false;
-        const rowMatches = attributeIndex[rowIdx].get(rowVal) || [];
-        for (const coaster of rowMatches) {
-          if (coaster.id === chosen.id) continue;
-          if (coaster._simplified[colIdx] === colVal) {
-            foundAny = true;
-            gridCandidates[i][j].push([coaster.id, coaster.name]);
+function generateHardestGridForChosen(chosen) {
+  const simplified = chosen._simplified;
+  const attrIndices = [...Array(simplified.length).keys()];
+  const validCombos = combinations(attrIndices, 6)
+      .filter(indices => {
+        if (!isValidAttributeCombo(indices)) return false;
+        const values = indices.map(i => simplified[i]);
+        if (values.includes("")) return false;
+        let count = 0;
+        for (const coaster of big_database) {
+          const other = indices.map(i => coaster._simplified[i]);
+          if (arraysEqual(other, values)) {
+            count++;
+            if (count === 2) return false;
           }
         }
-        if(!foundAny){
-          valid=false;
-          break;
-        }
-      }
-      if(!valid) break;
-    }
-    if (valid && calculateDifficulty(gridCandidates) < difficultyLimit && hasSolution(gridCandidates)) {
-      return {
-        rows: rowAttrs,
-        cols: colAttrs,
-        candidates: gridCandidates
-      };
+        return count === 1;
+      });
+  shuffle(validCombos);
+  const combosToTest = validCombos.slice(0, 200);
+  let bestGlobal = null;
+  let bestDifficulty = Infinity;
+  for (const indices of combosToTest) {
+    const values = indices.map(i => simplified[i]);
+    const result =
+        evaluateDistributionsForChosen(indices, values, chosen);
+    if (!result) continue;
+    if (result.difficulty < bestDifficulty) {
+      bestDifficulty = result.difficulty;
+      bestGlobal = result.grid;
     }
   }
-  return null;
+  return {
+    ...bestGlobal,
+    targetId: chosen.id
+  };
+}
+
+function evaluateDistributionsForChosen(indices, values, chosen) {
+  const paired = indices.map((v,i)=>[v,values[i]]);
+  const rowCombinations = combinations(paired,3);
+  let bestGrid = null;
+  let bestDifficulty = -Infinity;
+  for (const rowAttrs of rowCombinations) {
+    const colAttrs =
+        paired.filter(p => !rowAttrs.includes(p));
+    const grid = generateGridWithFixedDistribution(
+        rowAttrs,
+        colAttrs,
+        chosen
+    );
+    if (!grid) continue;
+    const difficulty =
+        calculateDifficulty(grid.candidates);
+    if (difficulty > bestDifficulty) {
+      bestDifficulty = difficulty;
+      bestGrid = grid;
+    }
+  }
+  if (!bestGrid) return null;
+  return {
+    grid: bestGrid,
+    difficulty: bestDifficulty
+  };
+}
+
+function generateGridWithFixedDistribution(rowAttrs, colAttrs, chosen) {
+  const gridCandidates =
+      Array.from({length:3},()=>
+          Array.from({length:3},()=>[])
+      );
+  for (let i=0;i<3;i++) {
+    const [rowIdx,rowVal] = rowAttrs[i];
+    for (let j=0;j<3;j++) {
+      const [colIdx,colVal] = colAttrs[j];
+      let foundAny=false;
+      const rowMatches =
+          attributeIndex[rowIdx].get(rowVal) || [];
+      for (const coaster of rowMatches) {
+        if (coaster.id === chosen.id) continue;
+        if (coaster._simplified[colIdx] === colVal) {
+          foundAny=true;
+          gridCandidates[i][j]
+              .push([coaster.id, coaster.name]);
+        }
+      }
+      if(!foundAny){
+        return null;
+      }
+    }
+  }
+  if (!hasSolution(gridCandidates)) {
+    return null;
+  }
+  return {
+    rows: rowAttrs,
+    cols: colAttrs,
+    candidates: gridCandidates
+  };
 }
 
 function renderGridWithHints(grid) {
   const gridEl = document.getElementById("grid");
   gridEl.innerHTML = "";
-  const actionBtn = document.createElement("button");
-  actionBtn.id = "giveUpBtn";
+  const cornerCell = document.createElement("div");
+  cornerCell.className = "empty-corner";
+  cornerCell.id = "wildcard-corner";
+  const wildcard = document.createElement("div");
+  wildcard.id = "wildcard-card";
+  wildcard.innerHTML = `
+<div class="wildcard-inner">
+    <div class="wildcard-face wildcard-front">?</div>
+    <div class="wildcard-face wildcard-back" id="wildcard-back"></div>
+</div>
+`;
+  cornerCell.appendChild(wildcard);
+  gridEl.appendChild(cornerCell);
+  const actionBtn = document.getElementById("giveUpBtn");
   if (currentMode === "daily") {
     actionBtn.innerHTML = `<img src="icons/copy.svg" alt="Restart">`;
     actionBtn.onclick = () => showEndScreen(false);
@@ -470,7 +544,6 @@ function renderGridWithHints(grid) {
     actionBtn.innerHTML = `<img src="icons/new-game.svg" alt="Copy result">`;
     actionBtn.onclick = () => showSeedScreen();
   }
-  gridEl.appendChild(actionBtn);
   grid.cols.forEach(([colIdx, colVal]) => {
     const label = document.createElement("div");
     label.className = "label";
@@ -617,56 +690,79 @@ function removeDropdown() {
 }
 
 function evaluateSelection(input, coaster) {
+  const cell = input.parentElement;
+  const isCorner = input.dataset.corner === "true";
+  const isTarget = coaster.id === currentGrid.targetId;
+  if (isCorner) {
+    console.log("1");
+    const correct = coaster.id === currentGrid.targetId;
+    console.log("2");
+    input.remove();
+    cell.classList.add("locked");
+    cell.innerHTML = `
+    <div class="cell-coaster">${coaster.name}</div>
+    <div class="cell-park">${coaster.park ?? ""}</div>
+  `;
+    cell.classList.add(correct ? "target" : "wrong");
+    cell.classList.add(correct ? "wildcard-pop" : "wrong");
+    console.log("3");
+    showEndScreen(false);
+    console.log("4");
+    return;
+  }
+  let errorText = [];
   const row = Number(input.dataset.row);
   const col = Number(input.dataset.col);
   const rowAttrIndex = Number(input.dataset.rowAttr);
   const colAttrIndex = Number(input.dataset.colAttr);
-  const cell = input.parentElement;
   const simplified = coaster._simplified;
   const expectedRowValue = currentGrid.rows[row][1];
   const expectedColValue = currentGrid.cols[col][1];
   const matchesRow = simplified[rowAttrIndex] === expectedRowValue;
   const matchesCol = simplified[colAttrIndex] === expectedColValue;
-  const isValid = matchesRow && matchesCol;
-  const chosenId = currentGrid.candidates[0][0][0][0];
-  const isTarget = coaster.id === chosenId;
+  isCorrect = matchesRow && matchesCol;
+  if (!matchesRow)
+    errorText.push(getRawAttributeValue(coaster, rowAttrIndex));
+  if (!matchesCol)
+    errorText.push(getRawAttributeValue(coaster, colAttrIndex));
   usedCoasters.add(coaster.id);
   input.remove();
   cell.classList.add("locked");
-  const nameDiv = document.createElement("div");
-  nameDiv.className = "cell-coaster";
-  nameDiv.textContent = coaster.name;
-  nameDiv.dataset.row = row;
-  nameDiv.dataset.col = col;
-  nameDiv.dataset.id = coaster.id;
-  const parkDiv = document.createElement("div");
-  parkDiv.className = "cell-park";
-  parkDiv.textContent = coaster.park ?? "";
-  cell.innerHTML = "";
-  cell.appendChild(nameDiv);
-  cell.appendChild(parkDiv);
   if (isTarget) {
-    cell.classList.add("target");
-  } else if (isValid) {
+    wildcardUsed = true;
+    animateWildcardToCell(cell, coaster, input);
+  } else {
+    cell.innerHTML = `
+  <div class="cell-coaster"
+       data-row="${input.dataset.row ?? ""}"
+       data-col="${input.dataset.col ?? ""}"
+       data-id="${coaster.id}">
+    ${coaster.name}
+  </div>
+  <div class="cell-park">${coaster.park ?? ""}</div>
+  `;
+  }
+  if (isTarget) {
+    const back = document.getElementById("wildcard-back");
+    if (back) {
+      back.innerHTML = `
+<div class="cell-coaster">${coaster.name}</div>
+<div class="cell-park">${coaster.park ?? ""}</div>
+`;
+    }
+  } else if (isCorrect) {
     cell.classList.add("correct");
   } else {
     cell.classList.add("wrong");
-    let errorText = [];
-    if (!matchesRow) {
-      errorText.push(getRawAttributeValue(coaster, rowAttrIndex));
+    if (errorText.length) {
+      const errorDiv = document.createElement("div");
+      errorDiv.className = "cell-error";
+      errorDiv.innerHTML = errorText.join("<br>");
+      cell.appendChild(errorDiv);
     }
-    if (!matchesCol) {
-      errorText.push(getRawAttributeValue(coaster, colAttrIndex));
-    }
-    const errorDiv = document.createElement("div");
-    errorDiv.className = "cell-error";
-    errorDiv.innerHTML = errorText.join("<br>");
-    cell.appendChild(errorDiv);
   }
   checkGameEnd();
-  if (currentMode === "daily") {
-    saveDailyState();
-  }
+  if (currentMode === "daily") saveDailyState();
 }
 
 function getRawAttributeValue(coaster, attrIndex) {
@@ -702,32 +798,106 @@ function getRawAttributeValue(coaster, attrIndex) {
   }
 }
 
+function animateWildcardToCell(cell, coaster, input) {
+  const wildcard = document.getElementById("wildcard-card");
+  if (!wildcard) return;
+  wildcard.style.zIndex = "1000";
+  const start = wildcard.getBoundingClientRect();
+  const end = cell.getBoundingClientRect();
+  const dx = end.left - start.left;
+  const dy = end.top - start.top;
+  const inner = wildcard.querySelector(".wildcard-inner");
+  inner.style.transform =
+      `translate(${dx}px, ${dy}px) rotateY(180deg)`;
+  setTimeout(() => {
+    cell.classList.add("target");
+    wildcard.remove();
+    cell.innerHTML = `
+    <div class="cell-coaster"
+         data-row="${input.dataset.row ?? ""}"
+         data-col="${input.dataset.col ?? ""}"
+         data-id="${coaster.id}">
+      ${coaster.name}
+    </div>
+    <div class="cell-park">${coaster.park ?? ""}</div>
+  `;
+    if (currentMode === "daily") saveDailyState();
+  }, 700);
+}
+
 function checkGameEnd() {
   const lockedCells = document.querySelectorAll(".cell.locked");
-  if (lockedCells.length !== 9) return;
-  if (!isRestoringState) showEndScreen(false);
+  const wildcardPlaced = document.querySelector(".cell.target") !== null;
+  const corner = document.getElementById("wildcard-corner");
+  if (wildcardPlaced) {
+    if (lockedCells.length === 9 && !isRestoringState) {
+      showEndScreen(false);
+    }
+    return;
+  }
+  if (lockedCells.length === 9 && !wildcardUsed && !corner.querySelector("input")) {
+    revealWildcardGuessCell();
+    return;
+  }
+  if (corner && corner.classList.contains("locked") && !isRestoringState) {
+    showEndScreen(false);
+  }
+}
+
+function revealWildcardGuessCell() {
+  const wildcard = document.getElementById("wildcard-card");
+  const corner = document.getElementById("wildcard-corner");
+  if (wildcard) {
+    wildcard.classList.add("wildcard-disappear");
+    setTimeout(() => {
+      corner.classList.remove("empty-corner");
+      corner.classList.add("cell");
+      const input = document.createElement("input");
+      input.dataset.corner = "true";
+      input.placeholder = "Guess the wildcard!";
+      input.addEventListener("input", onInputTyping);
+      input.addEventListener("blur", () => {
+        setTimeout(() => {
+          removeDropdown();
+          if (input.isConnected) input.value = "";
+        }, 120);
+      });
+      corner.innerHTML = "";
+      corner.appendChild(input);
+    }, 500);
+  }
 }
 
 function generateResultText() {
-  const gridCells = [...document.querySelectorAll("#grid .cell")];
-  let greens = 0;
-  let emojiRows = [];
-  for (let i = 0; i < 3; i++) {
-    const row = gridCells.slice(i * 3, i * 3 + 3);
-    emojiRows.push(
-        row.map(cell => {
-          if (!cell.classList.contains("locked")) return "⬛";
-          if (cell.classList.contains("correct")) {
-            greens++;
-            return "🟩";
-          }
-          if (cell.classList.contains("target")) {
-            greens++;
-            return "⭐";
-          }
-          return "🟥";
-        }).join("")
-    );
+  const board = Array.from({ length: 4 }, () => Array(4).fill("⬛"));
+  let score = 0;
+  const cells = document.querySelectorAll("#grid .cell");
+  cells.forEach(cell => {
+    const coaster = cell.querySelector(".cell-coaster");
+    if (!coaster) return;
+    const row = Number(coaster.dataset.row);
+    const col = Number(coaster.dataset.col);
+    if (isNaN(row) || isNaN(col)) return;
+    const r = row + 1;
+    const c = col + 1;
+    if (cell.classList.contains("target")) {
+      board[r][c] = "⭐";
+      score++;
+    } else if (cell.classList.contains("correct")) {
+      board[r][c] = "🟩";
+      score++;
+    } else if (cell.classList.contains("wrong")) {
+      board[r][c] = "🟥";
+    }
+  });
+  const corner = document.getElementById("wildcard-corner");
+  if (corner && corner.classList.contains("locked")) {
+    if (corner.classList.contains("target")) {
+      board[0][0] = "⭐";
+      score++;
+    } else if (corner.classList.contains("wrong")) {
+      board[0][0] = "🟥";
+    }
   }
   let header;
   if (currentMode === "daily") {
@@ -735,8 +905,9 @@ function generateResultText() {
   } else {
     header = `Coasterdoku Endless`;
   }
-  return `${header} (${greens}/9)
-${emojiRows.join("\n")}`;
+  const rows = board.map(r => r.join("")).join("\n");
+  return `${header} (${score}/10)
+${rows}`;
 }
 
 function showEndScreen(gaveUp = false) {
@@ -860,4 +1031,3 @@ async function main() {
 }
 
 main();
-
